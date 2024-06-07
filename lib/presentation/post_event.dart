@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:eventify/core/app_export.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../models/events.dart';
+import 'google_map.dart';
 
 class EventForm extends StatefulWidget {
   const EventForm({super.key});
@@ -91,6 +93,18 @@ class _EventFormState extends State<EventForm> {
     }
   }
 
+  Future<void> _setLocationUrlFromMap() async {
+    final LatLng? pickedLocation = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const MapPickerScreen()),
+    );
+
+    if (pickedLocation != null) {
+      _locationLinkController.text =
+          'https://www.google.com/maps/search/?api=1&query=${pickedLocation.latitude},${pickedLocation.longitude}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,7 +140,7 @@ class _EventFormState extends State<EventForm> {
               ),
               const SizedBox(height: 24),
               ButtonSecondary(
-                onTap: _selectFile, // Changed from _selectImage to _selectFile
+                onTap: _selectFile,
                 buttonText: 'Select Event File (Image/Video)',
               ),
               if (_eventFile != null)
@@ -187,6 +201,11 @@ class _EventFormState extends State<EventForm> {
                   controller: _locationLinkController,
                   decoration: const InputDecoration(labelText: 'Location Link'),
                 ),
+              const SizedBox(height: 16),
+              ButtonSecondary(
+                onTap: _setLocationUrlFromMap,
+                buttonText: 'Use Google Maps to Set Location URL',
+              ),
               const SizedBox(height: 32),
               ButtonPrimary(
                 onTap: _submitEvent,

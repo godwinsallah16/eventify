@@ -33,6 +33,8 @@ class EventService {
       List<EventModel> events = [];
       for (var doc in snapshot.docs) {
         EventModel event = EventModel.fromJson(doc.data());
+        event.id = doc.id; // Assign the document ID as the event ID
+
         final userInfoDoc = await _firestore
             .collection('public')
             .doc('users')
@@ -42,12 +44,11 @@ class EventService {
 
         if (userInfoDoc.exists) {
           event.userName = userInfoDoc.get('userName');
-          event.profileUrl = userInfoDoc.data()!.containsKey('profileUrl') &&
-                  userInfoDoc.get('profileUrl').isNotEmpty
+          event.profileUrl = userInfoDoc.data()!.containsKey('profileUrl')
               ? userInfoDoc.get('profileUrl')
-              : getInitialsFromUserName(event.userName ?? '');
+              : '';
         } else {
-          event.userName = getInitialsFromUserName(event.userName ?? '');
+          event.userName = ''; // Set to an empty string
           event.profileUrl = ''; // Use initials or a default image
         }
         events.add(event);
@@ -56,15 +57,47 @@ class EventService {
     });
   }
 
-  String getInitialsFromUserName(String userName) {
-    if (userName.isEmpty) return 'U';
-    List<String> nameParts = userName.split(' ');
-    if (nameParts.length == 1) {
-      return userName.length > 1
-          ? '${userName[0]}${userName[userName.length - 1]}'
-          : userName[0];
+  Future<Map<String, dynamic>> getComments(String eventId) async {
+    try {
+      QuerySnapshot commentSnapshot = await _firestore
+          .collection('public')
+          .doc('events')
+          .collection('users')
+          .doc(eventId)
+          .collection('comments')
+          .get();
+      List<String> comments = [];
+      for (var doc in commentSnapshot.docs) {
+        var data = doc.data() as Map<String, dynamic>?; // Explicit cast to Map
+        if (data != null) {
+          comments.add(data['comment'] as String? ?? '');
+        }
+      }
+      int commentCount = comments.length;
+      return {'comments': comments, 'commentCount': commentCount};
+    } catch (e) {
+      throw Exception('Error fetching comments: $e');
     }
-    return '${nameParts[0][0]}${nameParts[1][0]}';
+  }
+
+  Future<int> getLikesCount(String eventId) async {
+    try {
+      DocumentSnapshot eventSnapshot = await _firestore
+          .collection('public')
+          .doc('events')
+          .collection('users')
+          .doc(eventId)
+          .get();
+      if (eventSnapshot.exists) {
+        return (eventSnapshot.data() as Map<String, dynamic>?)?['likes']
+                as int? ??
+            0;
+      } else {
+        throw Exception('Event not found');
+      }
+    } catch (e) {
+      throw Exception('Error fetching likes count: $e');
+    }
   }
 
   String formatDate(String date) {
